@@ -1,0 +1,49 @@
+/* ==========================================================================
+   Izy Global Partners LLP — house identity (black & gold)
+   Single source of truth for brand colours and tokens. Tune values here.
+
+   The gold is sampled directly from the firm logo: #ceaa51 (rgb 206,170,81).
+   Design language: squared edges, generous space, editorial serif display —
+   restrained luxury.
+   ========================================================================== */
+
+:root {
+  /* --- Brand palette ----------------------------------------------------- */
+  --igp-black: #0a0a0b;          /* deep black background panels            */
+  --igp-black-soft: #141416;     /* raised black surfaces                   */
+  --igp-black-line: #2a2924;     /* hairlines on black                      */
+
+  --igp-gold: #ceaa51;           /* PRIMARY — logo gold                     */
+  --igp-gold-bright: #e7ca7e;    /* highlight gold (hover / focus)          */
+  --igp-gold-soft: #d8bd71;      /* secondary gold                          */
+  --igp-gold-deep: #a9842f;      /* deep gold (borders / pressed)           */
+  --igp-gold-text: #8c6f24;      /* readable gold for small text on cream   */
+
+  --igp-cream: #f6f2e9;          /* cream/off-white content surface         */
+  --igp-cream-soft: #ece4d2;     /* secondary cream                         */
+  --igp-card: #fffdf9;           /* content cards (warm white)              */
+  --igp-ink: #1c1a14;            /* primary text on cream                   */
+  --igp-ink-soft: #57503f;       /* muted text on cream                     */
+
+  /* --- Status colours (restrained) -------------------------------------- */
+  --igp-ok: #2f6b46;
+  --igp-warn: #946410;
+  --igp-danger: #8c2f2f;
+  --igp-muted: #8a8377;
+
+  /* --- Layout tokens ----------------------------------------------------- */
+  /* Squared, couture edges throughout — no curves. */
+  --igp-radius: 0;
+  --igp-radius-sm: 0;
+  --igp-border: 1px solid rgba(206, 170, 81, 0.38);
+  --igp-line: rgba(140, 111, 36, 0.18);
+  --igp-hair: rgba(206, 170, 81, 0.45);   /* fine gold rule                 */
+  --igp-shadow: 0 1px 0 rgba(140, 111, 36, 0.08), 0 18px 40px -28px rgba(28, 26, 20, 0.45);
+  --igp-shadow-dark: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  --igp-maxw: 1240px;
+
+  /* --- Typography -------------------------------------------------------- */
+  --igp-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --igp-sans: 'Jost', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --igp-track: 0.18em;           /* luxury letter-spacing for labels        */
+}

@@ -1,0 +1,19 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# SQLite transient files only — the main .db IS committed so the catalogue
+# edits made in the app are versioned and pushed to GitHub.
+server/data/*.db-wal
+server/data/*.db-shm
+server/data/*.db-journal
+
+# Secrets
+.env
+.env.local
+
+# Editor / OS
+.DS_Store
+*.log

@@ -1,0 +1,32 @@
+{
+  "name": "igp-library",
+  "version": "1.0.0",
+  "description": "Library Management System for Izy Global Partners LLP — Legal & Knowledge Resources Centre",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c gray,yellow \"npm:server\" \"npm:web\"",
+    "web": "vite",
+    "server": "node server/index.js",
+    "build": "vite build",
+    "preview": "vite preview",
+    "create-admin": "node server/createAdmin.js",
+    "seed": "node server/seedHoldings.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "vite": "^5.2.11"
+  }
+}
