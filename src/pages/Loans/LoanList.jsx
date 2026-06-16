@@ -6,6 +6,7 @@ import { getSettings } from '../../lib/settings';
 import { formatDate, norm, toDate } from '../../lib/format';
 import Spinner from '../../components/Spinner';
 import StatusBadge from '../../components/StatusBadge';
+import DataTable from '../../components/DataTable';
 
 export default function LoanList() {
   const [params] = useSearchParams();
@@ -97,44 +98,31 @@ export default function LoanList() {
           </div>
         </div>
 
-        <p className="text-small muted">{filtered.length} loan{filtered.length === 1 ? '' : 's'}.</p>
-
-        <div className="table-wrap">
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Loan</th><th>Title</th><th>Member</th><th>Issued</th>
-                <th>Due</th><th>Returned</th><th>Status</th><th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((l) => (
-                <tr key={l.id}>
-                  <td>{l.loanId}</td>
-                  <td>{l.bookTitle}</td>
-                  <td>{l.memberName}</td>
-                  <td>{formatDate(l.dateIssued)}</td>
-                  <td>{formatDate(l.dueDate)}</td>
-                  <td>{l.dateReturned ? formatDate(l.dateReturned) : '—'}</td>
-                  <td><StatusBadge status={l.status} /></td>
-                  <td>
-                    {!l.dateReturned && (
-                      <div className="row">
-                        <button className="btn btn--sm" disabled={busy} onClick={() => doReturn(l)}>Return</button>
-                        {settings?.allowRenewals && (
-                          <button className="btn btn--sm btn--ghost" disabled={busy} onClick={() => doRenew(l)}>Renew</button>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={8} className="muted">No loans match the current filters.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          rows={filtered}
+          pageSize={10}
+          initialSort={{ key: 'dateIssued', dir: 'desc' }}
+          emptyMessage="No loans match the current filters."
+          columns={[
+            { key: 'loanId', label: 'Loan', sortable: true },
+            { key: 'bookTitle', label: 'Title', sortable: true },
+            { key: 'memberName', label: 'Member', sortable: true },
+            { key: 'dateIssued', label: 'Issued', sortable: true, render: (l) => formatDate(l.dateIssued) },
+            { key: 'dueDate', label: 'Due', sortable: true, render: (l) => formatDate(l.dueDate) },
+            { key: 'dateReturned', label: 'Returned', render: (l) => (l.dateReturned ? formatDate(l.dateReturned) : '—') },
+            { key: 'status', label: 'Status', sortable: true, render: (l) => <StatusBadge status={l.status} /> },
+            { key: 'actions', label: 'Actions', render: (l) => (
+              !l.dateReturned ? (
+                <div className="row">
+                  <button className="btn btn--sm" disabled={busy} onClick={() => doReturn(l)}>Return</button>
+                  {settings?.allowRenewals && (
+                    <button className="btn btn--sm btn--ghost" disabled={busy} onClick={() => doRenew(l)}>Renew</button>
+                  )}
+                </div>
+              ) : <span className="muted">—</span>
+            ) },
+          ]}
+        />
       </div>
     </>
   );

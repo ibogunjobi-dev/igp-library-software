@@ -1,8 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Izy Global Partners LLP — crest mark: two overlapping gold discs, traced
-     from the firm logo (smaller disc lower-left, larger disc upper-right). -->
+<!-- Izy Global Partners LLP — crest mark, traced from the firm logo.
+     Two COMPLETE gold discs (smaller lower-left, larger upper-right) that
+     overlap with a thin transparent gap where they intersect: the larger disc
+     is masked out behind the smaller one plus a small ring, so the smaller disc
+     reads as sitting in front with a clean separation. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 244 145" role="img"
      aria-label="Izy Global Partners LLP">
+  <defs>
+    <mask id="igp-gap">
+      <rect x="0" y="0" width="244" height="145" fill="white" />
+      <!-- Knock out a disc (smaller circle + gap ring) from the larger disc. -->
+      <circle cx="57" cy="84" r="65" fill="black" />
+    </mask>
+  </defs>
+  <!-- Larger disc, with the gap knocked out where the smaller disc overlaps. -->
+  <circle cx="171" cy="73" r="69" fill="#ceaa51" mask="url(#igp-gap)" />
+  <!-- Smaller disc, complete, sitting in front. -->
   <circle cx="57" cy="84" r="57" fill="#ceaa51" />
-  <circle cx="171" cy="73" r="69" fill="#ceaa51" />
 </svg>

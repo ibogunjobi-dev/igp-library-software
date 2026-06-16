@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { searchSeriesIndexes, addSeriesIndex } from '../lib/lawreports';
 import { exportToExcel } from '../lib/excel';
+import DataTable from './DataTable';
 
 export default function IndexSearch({ seriesId, seriesAbbr }) {
   const [q, setQ] = useState('');
@@ -103,27 +104,23 @@ export default function IndexSearch({ seriesId, seriesAbbr }) {
         </form>
       )}
 
-      <div className="table-wrap mt-3">
-        {rows.length === 0 ? (
+      <div className="mt-3">
+        {rows.length === 0 && count === 0 ? (
           <p className="muted" style={{ padding: '0.5rem 0' }}>
-            {count === 0
-              ? 'No indexes have been added for this report yet. Use "Add index" to start building them.'
-              : 'No index entries match your search.'}
+            No indexes have been added for this report yet. Use &ldquo;Add index&rdquo; to start building them.
           </p>
         ) : (
-          <table className="data">
-            <thead><tr><th>Index entry</th><th>Reference</th><th>Keywords</th><th>Notes</th></tr></thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.title}</td>
-                  <td>{r.reference || <span className="muted">—</span>}</td>
-                  <td>{r.keywords || <span className="muted">—</span>}</td>
-                  <td>{r.notes || <span className="muted">—</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable
+            rows={rows}
+            pageSize={10}
+            emptyMessage="No index entries match your search."
+            columns={[
+              { key: 'title', label: 'Index entry', sortable: true },
+              { key: 'reference', label: 'Reference', render: (r) => r.reference || <span className="muted">—</span> },
+              { key: 'keywords', label: 'Keywords', render: (r) => r.keywords || <span className="muted">—</span> },
+              { key: 'notes', label: 'Notes', render: (r) => r.notes || <span className="muted">—</span> },
+            ]}
+          />
         )}
       </div>
     </div>

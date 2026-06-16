@@ -1,10 +1,11 @@
-// Member (borrower) directory.
+// Member (borrower) directory — reusable paginated table (10 per page).
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllMembers } from '../../lib/members';
 import { norm } from '../../lib/format';
 import Spinner from '../../components/Spinner';
 import StatusBadge from '../../components/StatusBadge';
+import DataTable from '../../components/DataTable';
 
 export default function MemberList() {
   const [members, setMembers] = useState(null);
@@ -31,10 +32,24 @@ export default function MemberList() {
       )
     : members;
 
+  const columns = [
+    { key: 'memberId', label: 'Member ID', sortable: true,
+      render: (m) => <Link to={`/members/${m.id}`}>{m.memberId}</Link> },
+    { key: 'fullName', label: 'Full name', sortable: true,
+      render: (m) => <Link to={`/members/${m.id}`}>{m.fullName}</Link> },
+    { key: 'memberType', label: 'Type', sortable: true },
+    { key: 'email', label: 'Email', render: (m) => m.email || <span className="muted">—</span> },
+    { key: 'phone', label: 'Phone', render: (m) => m.phone || <span className="muted">—</span> },
+    { key: 'status', label: 'Status', sortable: true, render: (m) => <StatusBadge status={m.status} /> },
+  ];
+
   return (
     <>
       <div className="page-head">
-        <h1>Members</h1>
+        <div>
+          <span className="page-head__sub">Legal &amp; Knowledge Resources Centre</span>
+          <h1>Members</h1>
+        </div>
         <div className="page-head__actions">
           <Link to="/members/new" className="btn">Add member</Link>
         </div>
@@ -51,31 +66,9 @@ export default function MemberList() {
         {members.length === 0 ? (
           <p className="muted">No members yet. <Link to="/members/new">Add a member</Link>.</p>
         ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Member ID</th><th>Full name</th><th>Type</th>
-                  <th>Email</th><th>Phone</th><th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((m) => (
-                  <tr key={m.id}>
-                    <td><Link to={`/members/${m.id}`}>{m.memberId}</Link></td>
-                    <td><Link to={`/members/${m.id}`}>{m.fullName}</Link></td>
-                    <td>{m.memberType}</td>
-                    <td>{m.email || <span className="muted">—</span>}</td>
-                    <td>{m.phone || <span className="muted">—</span>}</td>
-                    <td><StatusBadge status={m.status} /></td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={6} className="muted">No members match your search.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable columns={columns} rows={filtered} pageSize={10}
+            initialSort={{ key: 'memberId', dir: 'asc' }}
+            emptyMessage="No members match your search." />
         )}
       </div>
     </>

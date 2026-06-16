@@ -23,6 +23,7 @@ import { GROUPINGS, COLLECTIONS, FIRM_NAME } from '../../lib/constants';
 import { authorsToDisplay, formatDate, norm, toDate } from '../../lib/format';
 import Spinner from '../../components/Spinner';
 import StatusBadge from '../../components/StatusBadge';
+import DataTable from '../../components/DataTable';
 
 const REPORTS = [
   { id: 'overview', label: 'Catalogue overview' },
@@ -139,22 +140,20 @@ function OverviewReport({ catalogue }) {
 
   return (
     <ReportShell title="Catalogue overview by grouping and collection" onExport={exp}>
-      <div className="table-wrap">
-        <table className="data">
-          <thead><tr><th>Collection</th><th>Grouping</th><th>Titles</th><th>Copies</th></tr></thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}><td>{r.collection}</td><td>{r.grouping}</td>
-                <td className="num">{r.titles}</td><td className="num">{r.copies}</td></tr>
-            ))}
-            <tr style={{ fontWeight: 700 }}>
-              <td colSpan={2}>Total</td>
-              <td className="num">{catalogue.length}</td>
-              <td className="num">{catalogue.reduce((s, r) => s + (r.copiesTotal || 0), 0)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={rows}
+        pageSize={10}
+        getRowKey={(r) => `${r.collection}-${r.grouping}`}
+        columns={[
+          { key: 'collection', label: 'Collection' },
+          { key: 'grouping', label: 'Grouping' },
+          { key: 'titles', label: 'Titles', align: 'right' },
+          { key: 'copies', label: 'Copies', align: 'right' },
+        ]}
+      />
+      <p className="text-small muted mt-2">
+        Total — {catalogue.length} titles, {catalogue.reduce((s, r) => s + (r.copiesTotal || 0), 0)} copies.
+      </p>
     </ReportShell>
   );
 }
@@ -255,23 +254,18 @@ function AcquisitionsReport({ catalogue }) {
       {rows.length === 0 ? (
         <p className="muted">No records carry an acquisition date.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="data">
-            <thead><tr><th>Acquired</th><th>Accession</th><th>Title</th><th>Author</th><th>Grouping</th><th>Copies</th></tr></thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{formatDate(r.acquisitionDate)}</td>
-                  <td>{r.accessionNumber}</td>
-                  <td>{r.title}</td>
-                  <td>{authorsToDisplay(r.authors) || '—'}</td>
-                  <td>{r.grouping}</td>
-                  <td className="num">{r.copiesTotal}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          rows={rows}
+          pageSize={10}
+          columns={[
+            { key: 'acquisitionDate', label: 'Acquired', sortable: true, render: (r) => formatDate(r.acquisitionDate) },
+            { key: 'accessionNumber', label: 'Accession', sortable: true },
+            { key: 'title', label: 'Title', sortable: true },
+            { key: 'author', label: 'Author', sortValue: (r) => authorsToDisplay(r.authors), render: (r) => authorsToDisplay(r.authors) || '—' },
+            { key: 'grouping', label: 'Grouping', sortable: true },
+            { key: 'copiesTotal', label: 'Copies', align: 'right' },
+          ]}
+        />
       )}
     </ReportShell>
   );
@@ -312,22 +306,21 @@ function MemberDirectoryReport({ members, loans }) {
     });
   return (
     <ReportShell title="Member directory with borrowing activity" onExport={exp}>
-      <div className="table-wrap">
-        <table className="data">
-          <thead><tr><th>Member ID</th><th>Name</th><th>Type</th><th>Status</th><th>Total loans</th><th>Held</th><th>Overdue</th></tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.memberId}>
-                <td>{r.memberId}</td><td>{r.fullName}</td><td>{r.memberType}</td>
-                <td><StatusBadge status={r.status} /></td>
-                <td className="num">{r.totalLoans}</td>
-                <td className="num">{r.currentlyHeld}</td>
-                <td className="num">{r.overdue}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={rows}
+        pageSize={10}
+        getRowKey={(r) => r.memberId}
+        initialSort={{ key: 'memberId', dir: 'asc' }}
+        columns={[
+          { key: 'memberId', label: 'Member ID', sortable: true },
+          { key: 'fullName', label: 'Name', sortable: true },
+          { key: 'memberType', label: 'Type', sortable: true },
+          { key: 'status', label: 'Status', sortable: true, render: (r) => <StatusBadge status={r.status} /> },
+          { key: 'totalLoans', label: 'Total loans', align: 'right', sortable: true },
+          { key: 'currentlyHeld', label: 'Held', align: 'right', sortable: true },
+          { key: 'overdue', label: 'Overdue', align: 'right', sortable: true },
+        ]}
+      />
     </ReportShell>
   );
 }
@@ -373,21 +366,17 @@ function NwlrReport() {
         <span className="badge badge--missing">Missing {status.missing}</span>
         <span className="badge badge--reference">Total {status.total}</span>
       </div>
-      <div className="table-wrap">
-        <table className="data">
-          <thead><tr><th>Band</th><th>Held</th><th>Missing</th><th>Total</th></tr></thead>
-          <tbody>
-            {status.bands.map((b) => (
-              <tr key={b.label}>
-                <td>{b.label}</td>
-                <td className="num">{b.held}</td>
-                <td className="num">{b.missing}</td>
-                <td className="num">{b.total}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={status.bands}
+        pageSize={10}
+        getRowKey={(b) => b.label}
+        columns={[
+          { key: 'label', label: 'Band' },
+          { key: 'held', label: 'Held', align: 'right' },
+          { key: 'missing', label: 'Missing', align: 'right' },
+          { key: 'total', label: 'Total', align: 'right' },
+        ]}
+      />
       <p className="text-small muted mt-2">
         Large contiguous gaps flagged for shelf re-check:{' '}
         {status.flaggedGaps.map((g) => `${g.from}–${g.to}`).join(', ')}.
@@ -428,20 +417,19 @@ function loanRow(l) {
 function LoanTable({ loans, empty }) {
   if (loans.length === 0) return <p className="muted">{empty}</p>;
   return (
-    <div className="table-wrap">
-      <table className="data">
-        <thead><tr><th>Loan</th><th>Title</th><th>Member</th><th>Issued</th><th>Due</th><th>Returned</th><th>Status</th></tr></thead>
-        <tbody>
-          {loans.map((l) => (
-            <tr key={l.id}>
-              <td>{l.loanId}</td><td>{l.bookTitle}</td><td>{l.memberName}</td>
-              <td>{formatDate(l.dateIssued)}</td><td>{formatDate(l.dueDate)}</td>
-              <td>{l.dateReturned ? formatDate(l.dateReturned) : '—'}</td>
-              <td><StatusBadge status={l.status} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      rows={loans}
+      pageSize={10}
+      initialSort={{ key: 'dateIssued', dir: 'desc' }}
+      columns={[
+        { key: 'loanId', label: 'Loan', sortable: true },
+        { key: 'bookTitle', label: 'Title', sortable: true },
+        { key: 'memberName', label: 'Member', sortable: true },
+        { key: 'dateIssued', label: 'Issued', sortable: true, render: (l) => formatDate(l.dateIssued) },
+        { key: 'dueDate', label: 'Due', sortable: true, render: (l) => formatDate(l.dueDate) },
+        { key: 'dateReturned', label: 'Returned', render: (l) => (l.dateReturned ? formatDate(l.dateReturned) : '—') },
+        { key: 'status', label: 'Status', sortable: true, render: (l) => <StatusBadge status={l.status} /> },
+      ]}
+    />
   );
 }

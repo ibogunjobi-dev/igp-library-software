@@ -4,6 +4,7 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import { getLawReportSeries, addSeriesVolume, setVolumeStatus } from '../../lib/lawreports';
 import { exportToExcel } from '../../lib/excel';
 import IndexSearch from '../../components/IndexSearch';
+import DataTable from '../../components/DataTable';
 import Spinner from '../../components/Spinner';
 
 export default function LawReportSeries() {
@@ -100,26 +101,23 @@ export default function LawReportSeries() {
 
       <div className="panel">
         <h2 className="panel__title">Volumes</h2>
-        <div className="table-wrap">
-          <table className="data">
-            <thead><tr><th>Volume</th><th>Year</th><th>Vol. no.</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              {data.volumes.map((v) => (
-                <tr key={v.id}>
-                  <td>{v.label}</td>
-                  <td>{v.year || <span className="muted">—</span>}</td>
-                  <td>{v.volume || <span className="muted">—</span>}</td>
-                  <td><span className={`badge badge--${v.status === 'Held' ? 'held' : 'missing'}`}>{v.status}</span></td>
-                  <td className="num">
-                    <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => toggle(v)}>
-                      Mark {v.status === 'Held' ? 'missing' : 'held'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          rows={data.volumes}
+          pageSize={10}
+          emptyMessage="No volumes recorded yet."
+          columns={[
+            { key: 'label', label: 'Volume', sortable: true },
+            { key: 'year', label: 'Year', sortable: true, render: (v) => v.year || <span className="muted">—</span> },
+            { key: 'volume', label: 'Vol. no.', render: (v) => v.volume || <span className="muted">—</span> },
+            { key: 'status', label: 'Status', sortable: true,
+              render: (v) => <span className={`badge badge--${v.status === 'Held' ? 'held' : 'missing'}`}>{v.status}</span> },
+            { key: 'actions', label: '', align: 'right', render: (v) => (
+              <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => toggle(v)}>
+                Mark {v.status === 'Held' ? 'missing' : 'held'}
+              </button>
+            ) },
+          ]}
+        />
       </div>
 
       <IndexSearch seriesId={data.id} seriesAbbr={data.abbreviation} />

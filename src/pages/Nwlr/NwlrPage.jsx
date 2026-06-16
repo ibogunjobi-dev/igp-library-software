@@ -6,6 +6,7 @@ import { getNwlrStatus, getNwlrParts, lookupNwlrPart, markNwlrPartHeld, setNwlrU
 import { getLawReportSeriesList } from '../../lib/lawreports';
 import { exportToExcel } from '../../lib/excel';
 import IndexSearch from '../../components/IndexSearch';
+import DataTable from '../../components/DataTable';
 import Spinner from '../../components/Spinner';
 
 export default function NwlrPage() {
@@ -143,25 +144,20 @@ export default function NwlrPage() {
 
       <div className="panel">
         <h2 className="panel__title">Held vs missing by band</h2>
-        <div className="table-wrap">
-          <table className="data">
-            <thead><tr><th>Band</th><th>Held</th><th>Missing</th><th>Total</th></tr></thead>
-            <tbody>
-              {status.bands.map((b) => (
-                <tr key={b.label}>
-                  <td>{b.label}</td>
-                  <td className="num">{b.held}</td>
-                  <td className="num">{b.missing}</td>
-                  <td className="num">{b.total}</td>
-                </tr>
-              ))}
-              <tr style={{ fontWeight: 700 }}>
-                <td>Total</td><td className="num">{status.held}</td>
-                <td className="num">{status.missing}</td><td className="num">{status.total}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          rows={status.bands}
+          pageSize={10}
+          getRowKey={(b) => b.label}
+          columns={[
+            { key: 'label', label: 'Band' },
+            { key: 'held', label: 'Held', align: 'right' },
+            { key: 'missing', label: 'Missing', align: 'right' },
+            { key: 'total', label: 'Total', align: 'right' },
+          ]}
+        />
+        <p className="text-small muted mt-2">
+          Total — held {status.held}, missing {status.missing}, of {status.total} Parts.
+        </p>
       </div>
 
       <div className="panel">

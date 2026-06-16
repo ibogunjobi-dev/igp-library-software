@@ -7,6 +7,7 @@ import { GROUPINGS, COLLECTIONS, FIRM_NAME } from '../lib/constants';
 import { formatDate, toDate } from '../lib/format';
 import Spinner from '../components/Spinner';
 import StatusBadge from '../components/StatusBadge';
+import DataTable from '../components/DataTable';
 
 export default function Dashboard() {
   const [catalogue, setCatalogue] = useState(null);
@@ -86,25 +87,18 @@ export default function Dashboard() {
         {recent.length === 0 ? (
           <p className="muted mt-1">No catalogue records yet. Add a record or import existing holdings.</p>
         ) : (
-          <div className="table-wrap mt-1">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Accession</th><th>Title</th><th>Grouping</th><th>Status</th><th>Added</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((r) => (
-                  <tr key={r.id}>
-                    <td><Link to={`/catalogue/${r.id}`}>{r.accessionNumber}</Link></td>
-                    <td>{r.title}</td>
-                    <td>{r.grouping}</td>
-                    <td><StatusBadge status={r.status} /></td>
-                    <td>{formatDate(r.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-1">
+            <DataTable
+              rows={recent}
+              pageSize={10}
+              columns={[
+                { key: 'accessionNumber', label: 'Accession', render: (r) => <Link to={`/catalogue/${r.id}`}>{r.accessionNumber}</Link> },
+                { key: 'title', label: 'Title' },
+                { key: 'grouping', label: 'Grouping' },
+                { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+                { key: 'createdAt', label: 'Added', render: (r) => formatDate(r.createdAt) },
+              ]}
+            />
           </div>
         )}
       </div>
@@ -115,22 +109,17 @@ export default function Dashboard() {
             <h2 className="panel__title" style={{ margin: 0 }}>Overdue — action required</h2>
             <Link to="/loans?filter=overdue" className="btn btn--ghost btn--sm">View all loans</Link>
           </div>
-          <div className="table-wrap mt-1">
-            <table className="data">
-              <thead>
-                <tr><th>Loan</th><th>Title</th><th>Member</th><th>Due</th></tr>
-              </thead>
-              <tbody>
-                {overdue.slice(0, 8).map((l) => (
-                  <tr key={l.id}>
-                    <td>{l.loanId}</td>
-                    <td>{l.bookTitle}</td>
-                    <td>{l.memberName}</td>
-                    <td>{formatDate(l.dueDate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-1">
+            <DataTable
+              rows={overdue}
+              pageSize={10}
+              columns={[
+                { key: 'loanId', label: 'Loan' },
+                { key: 'bookTitle', label: 'Title' },
+                { key: 'memberName', label: 'Member' },
+                { key: 'dueDate', label: 'Due', render: (l) => formatDate(l.dueDate) },
+              ]}
+            />
           </div>
         </div>
       )}

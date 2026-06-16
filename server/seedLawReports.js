@@ -97,6 +97,41 @@ if (existingVols === 0) {
   console.log(`LRECN volumes already present (${existingVols}); left untouched.`);
 }
 
+// --- Index entries ----------------------------------------------------------
+// Seed a series' index entries only if it has none (preserves any added later).
+function seedIndexes(seriesId, entries, name) {
+  const have = db.prepare('SELECT COUNT(*) n FROM law_report_indexes WHERE series_id=?').get(seriesId).n;
+  if (have > 0) { console.log(`${name} indexes already present (${have}); left untouched.`); return; }
+  const ins = db.prepare('INSERT INTO law_report_indexes (series_id, title, reference, keywords, notes) VALUES (?,?,?,?,?)');
+  const tx = db.transaction(() => entries.forEach((e) => ins.run(seriesId, e.title, e.reference || '', e.keywords || '', e.notes || '')));
+  tx();
+  console.log(`${name} indexes seeded: ${entries.length}.`);
+}
+
+// LRECN consolidated indexes (one book per range).
+seedIndexes(lrecn.id, [
+  { title: 'Index to LRECN — 1960–1999', reference: '1960–1999', keywords: 'index 1960 1999', notes: 'One book.' },
+  { title: 'Index to LRECN — 2000–2008', reference: '2000–2008', keywords: 'index 2000 2008', notes: 'One book.' },
+  { title: 'Index to LRECN — 2009–2013', reference: '2009–2013', keywords: 'index 2009 2013', notes: 'One book.' },
+], 'LRECN');
+
+// NWLR Comprehensive Index volumes (from the firm's holdings photograph).
+const nwlrSeries = db.prepare("SELECT id FROM law_report_series WHERE abbreviation='NWLR'").get();
+if (nwlrSeries) {
+  seedIndexes(nwlrSeries.id, [
+    { title: 'Comprehensive Index to NWLR (2012) Parts 1280–1333 — Volume One', reference: 'Pages 1–940 · 54 Parts', keywords: 'comprehensive index 2012 1280 1333 volume one', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2012) Parts 1280–1333 — Volume Two', reference: 'Pages 941–1,883 · 54 Parts', keywords: 'comprehensive index 2012 1280 1333 volume two', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2013) Parts 1334–1386 — Volume One', reference: 'Pages 1–814 · 53 Parts', keywords: 'comprehensive index 2013 1334 1386 volume one', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2013) Parts 1334–1386 — Volume Two', reference: 'Pages 815–1,626 · 53 Parts', keywords: 'comprehensive index 2013 1334 1386 volume two', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2016) Parts 1492–1544 — Volume One', reference: 'Pages 1–864 · 53 Parts', keywords: 'comprehensive index 2016 1492 1544 volume one', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2016) Parts 1492–1544 — Volume Two', reference: 'Pages 865–1,730 · 53 Parts', keywords: 'comprehensive index 2016 1492 1544 volume two', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2024) Parts 1918–1971 — Volume One', reference: 'Pages 1–816 · 54 Parts', keywords: 'comprehensive index 2024 1918 1971 volume one', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2024) Parts 1918–1971 — Volume Two', reference: 'Pages 817–1,633 · 54 Parts', keywords: 'comprehensive index 2024 1918 1971 volume two', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2025) Parts 1972–2023 — Volume One', reference: 'Pages 1–1,030 · 52 Parts', keywords: 'comprehensive index 2025 1972 2023 volume one', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+    { title: 'Comprehensive Index to NWLR (2025) Parts 1972–2023 — Volume Two', reference: 'Pages 1,031–2,059 · 52 Parts', keywords: 'comprehensive index 2025 1972 2023 volume two', notes: 'Publisher: Nigerian Law Publications (nlp).' },
+  ], 'NWLR');
+}
+
 // --- Two electoral-law textbooks -------------------------------------------
 // Authored by the firm's principal, Alex A. Izinyon SAN — tagged firm-authored.
 const TEXTBOOKS = [

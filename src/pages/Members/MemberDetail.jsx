@@ -7,6 +7,7 @@ import { getSettings } from '../../lib/settings';
 import { formatDate } from '../../lib/format';
 import Spinner from '../../components/Spinner';
 import StatusBadge from '../../components/StatusBadge';
+import DataTable from '../../components/DataTable';
 
 export default function MemberDetail() {
   const { id } = useParams();
@@ -109,40 +110,25 @@ export default function MemberDetail() {
 }
 
 function LoanTable({ loans, actions, onReturn, onRenew, busy, canRenew }) {
-  return (
-    <div className="table-wrap">
-      <table className="data">
-        <thead>
-          <tr>
-            <th>Loan</th><th>Title</th><th>Issued</th><th>Due</th>
-            <th>Returned</th><th>Renewals</th><th>Status</th>
-            {actions && <th>Actions</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {loans.map((l) => (
-            <tr key={l.id}>
-              <td>{l.loanId}</td>
-              <td>{l.bookTitle}</td>
-              <td>{formatDate(l.dateIssued)}</td>
-              <td>{formatDate(l.dueDate)}</td>
-              <td>{l.dateReturned ? formatDate(l.dateReturned) : '—'}</td>
-              <td className="num">{l.renewedCount || 0}</td>
-              <td><StatusBadge status={l.status} /></td>
-              {actions && (
-                <td>
-                  <div className="row">
-                    <button className="btn btn--sm" disabled={busy} onClick={() => onReturn(l)}>Return</button>
-                    {canRenew && (
-                      <button className="btn btn--sm btn--ghost" disabled={busy} onClick={() => onRenew(l)}>Renew</button>
-                    )}
-                  </div>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const columns = [
+    { key: 'loanId', label: 'Loan', sortable: true },
+    { key: 'bookTitle', label: 'Title', sortable: true },
+    { key: 'dateIssued', label: 'Issued', sortable: true, render: (l) => formatDate(l.dateIssued) },
+    { key: 'dueDate', label: 'Due', sortable: true, render: (l) => formatDate(l.dueDate) },
+    { key: 'dateReturned', label: 'Returned', render: (l) => (l.dateReturned ? formatDate(l.dateReturned) : '—') },
+    { key: 'renewedCount', label: 'Renewals', align: 'right', render: (l) => l.renewedCount || 0 },
+    { key: 'status', label: 'Status', sortable: true, render: (l) => <StatusBadge status={l.status} /> },
+  ];
+  if (actions) {
+    columns.push({ key: 'actions', label: 'Actions', render: (l) => (
+      <div className="row">
+        <button className="btn btn--sm" disabled={busy} onClick={() => onReturn(l)}>Return</button>
+        {canRenew && (
+          <button className="btn btn--sm btn--ghost" disabled={busy} onClick={() => onRenew(l)}>Renew</button>
+        )}
+      </div>
+    ) });
+  }
+  return <DataTable columns={columns} rows={loans} pageSize={10}
+    initialSort={{ key: 'dateIssued', dir: 'desc' }} />;
 }

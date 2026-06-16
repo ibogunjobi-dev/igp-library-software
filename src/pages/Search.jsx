@@ -6,6 +6,7 @@ import { authorsToDisplay, norm } from '../lib/format';
 import { GROUPINGS, COLLECTIONS, CATALOGUE_STATUSES } from '../lib/constants';
 import Spinner from '../components/Spinner';
 import StatusBadge from '../components/StatusBadge';
+import DataTable from '../components/DataTable';
 
 export default function SearchPage() {
   const [items, setItems] = useState(null);
@@ -112,36 +113,31 @@ export default function SearchPage() {
 
         <p className="text-small muted">{results.length} matching record{results.length === 1 ? '' : 's'}.</p>
 
-        <div className="table-wrap">
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Accession</th><th>Title</th><th>Author</th><th>Edition</th>
-                <th>Grouping</th><th>Collection</th><th>Copies</th><th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r) => (
-                <tr key={r.id}>
-                  <td><Link to={`/catalogue/${r.id}`}>{r.accessionNumber}</Link></td>
-                  <td>
-                    <Link to={`/catalogue/${r.id}`}>{r.title}</Link>
-                    {r.firmAuthorship && <span className="badge badge--firm" style={{ marginLeft: 6 }}>Firm</span>}
-                  </td>
-                  <td>{authorsToDisplay(r.authors) || <span className="muted">—</span>}</td>
-                  <td>{r.edition || <span className="muted">—</span>}</td>
-                  <td>{r.grouping}</td>
-                  <td>{r.collection}</td>
-                  <td className="num">{r.copiesAvailable ?? 0} / {r.copiesTotal ?? 0}</td>
-                  <td><StatusBadge status={r.status} /></td>
-                </tr>
-              ))}
-              {results.length === 0 && (
-                <tr><td colSpan={8} className="muted">No records match the current filters.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          rows={results}
+          pageSize={10}
+          initialSort={{ key: 'accessionNumber', dir: 'asc' }}
+          emptyMessage="No records match the current filters."
+          columns={[
+            { key: 'accessionNumber', label: 'Accession', sortable: true,
+              render: (r) => <Link to={`/catalogue/${r.id}`}>{r.accessionNumber}</Link> },
+            { key: 'title', label: 'Title', sortable: true, render: (r) => (
+              <>
+                <Link to={`/catalogue/${r.id}`}>{r.title}</Link>
+                {r.firmAuthorship && <span className="badge badge--firm" style={{ marginLeft: 6 }}>Firm</span>}
+              </>
+            ) },
+            { key: 'author', label: 'Author', sortValue: (r) => authorsToDisplay(r.authors),
+              render: (r) => authorsToDisplay(r.authors) || <span className="muted">—</span> },
+            { key: 'edition', label: 'Edition', render: (r) => r.edition || <span className="muted">—</span> },
+            { key: 'grouping', label: 'Grouping', sortable: true },
+            { key: 'collection', label: 'Collection', sortable: true },
+            { key: 'copies', label: 'Copies', align: 'right', sortable: true,
+              sortValue: (r) => r.copiesAvailable ?? 0,
+              render: (r) => `${r.copiesAvailable ?? 0} / ${r.copiesTotal ?? 0}` },
+            { key: 'status', label: 'Status', sortable: true, render: (r) => <StatusBadge status={r.status} /> },
+          ]}
+        />
       </div>
     </>
   );
