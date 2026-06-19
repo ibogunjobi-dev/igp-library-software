@@ -3,7 +3,7 @@
 // own page. New series can be added here.
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getLawReportSeriesList, createLawReportSeries } from '../../lib/lawreports';
+import { getLawReportSeriesList, createLawReportSeries, bulkAddVolumes } from '../../lib/lawreports';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
 
@@ -11,7 +11,7 @@ export default function LawReportsList() {
   const [series, setSeries] = useState(null);
   const [error, setError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ abbreviation: '', name: '', kind: 'volumes' });
+  const [form, setForm] = useState({ abbreviation: '', name: '', kind: 'volumes', prefix: 'Part', parts: '' });
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
@@ -30,7 +30,13 @@ export default function LawReportsList() {
     if (!form.abbreviation.trim() || !form.name.trim()) return;
     setBusy(true);
     try {
-      const created = await createLawReportSeries(form);
+      const created = await createLawReportSeries({
+        abbreviation: form.abbreviation, name: form.name, kind: form.kind,
+      });
+      // Optionally seed available parts/volumes from a range expression.
+      if (created.kind === 'volumes' && form.parts.trim()) {
+        await bulkAddVolumes(created.id, form.parts, form.prefix || 'Part');
+      }
       navigate(created.kind === 'parts' ? '/nwlr' : `/law-reports/${created.id}`);
     } catch (err) {
       setError(err.message || 'Could not add the law report.');
@@ -78,11 +84,31 @@ export default function LawReportsList() {
             <div className="field">
               <label>Tracking model</label>
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                <option value="volumes">By volume (a list of held volumes)</option>
-                <option value="parts">By Part (held / missing, like NWLR)</option>
+                <option value="volumes">By volume / part (a list of held items)</option>
+                <option value="parts">By Part run, held / missing (like NWLR)</option>
               </select>
               <span className="field__hint">A catalogue serial record is created automatically.</span>
             </div>
+            {form.kind === 'volumes' && (
+              <>
+                <div className="field">
+                  <label>Available parts (optional)</label>
+                  <input
+                    value={form.parts}
+                    onChange={(e) => setForm({ ...form, parts: e.target.value })}
+                    placeholder="e.g. 200-500, 502-771, 805"
+                  />
+                  <span className="field__hint">
+                    Each number is added as a held item. You can tick / untick each one afterwards.
+                  </span>
+                </div>
+                <div className="field">
+                  <label>Item label</label>
+                  <input value={form.prefix} onChange={(e) => setForm({ ...form, prefix: e.target.value })} placeholder="Part" />
+                  <span className="field__hint">Each entry is labelled e.g. “{form.prefix || 'Part'} 200”.</span>
+                </div>
+              </>
+            )}
           </form>
         </Modal>
       )}

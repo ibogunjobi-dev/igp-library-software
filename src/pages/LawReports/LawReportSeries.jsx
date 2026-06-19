@@ -1,19 +1,26 @@
 // Volume-based law report series (e.g. LRECN) — held volumes + index search.
 import { useEffect, useState } from 'react';
-import { useParams, Link, Navigate } from 'react-router-dom';
-import { getLawReportSeries, addSeriesVolume, setVolumeStatus } from '../../lib/lawreports';
+import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
+import {
+  getLawReportSeries, addSeriesVolume, setVolumeStatus,
+  bulkAddVolumes, deleteLawReportSeries,
+} from '../../lib/lawreports';
 import { exportToExcel } from '../../lib/excel';
 import IndexSearch from '../../components/IndexSearch';
 import DataTable from '../../components/DataTable';
+import Modal from '../../components/Modal';
 import Spinner from '../../components/Spinner';
 
 export default function LawReportSeries() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ label: '', year: '', volume: '', status: 'Held' });
+  const [range, setRange] = useState({ parts: '', prefix: 'Part' });
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function load() {
     try { setData(await getLawReportSeries(id)); }
@@ -37,6 +44,27 @@ export default function LawReportSeries() {
       setShowAdd(false);
       await load();
     } catch (err) { setError(err.message); } finally { setBusy(false); }
+  }
+
+  async function onAddRange(e) {
+    e.preventDefault();
+    if (!range.parts.trim()) return;
+    setBusy(true);
+    try {
+      const res = await bulkAddVolumes(id, range.parts, range.prefix || 'Part');
+      setRange({ parts: '', prefix: range.prefix || 'Part' });
+      setShowAdd(false);
+      await load();
+      if (res.added === 0) setError('Those parts were already listed — nothing added.');
+    } catch (err) { setError(err.message); } finally { setBusy(false); }
+  }
+
+  async function onDelete() {
+    setBusy(true);
+    try {
+      await deleteLawReportSeries(id);
+      navigate('/law-reports');
+    } catch (err) { setError(err.message); setBusy(false); setConfirmDelete(false); }
   }
 
   function exportVolumes() {
@@ -66,7 +94,8 @@ export default function LawReportSeries() {
         <div className="page-head__actions">
           <button className="btn btn--ghost btn--sm" onClick={() => window.print()}>Print</button>
           <button className="btn btn--ghost btn--sm" onClick={exportVolumes} disabled={!data.volumes.length}>Export volumes</button>
-          <button className="btn btn--sm" onClick={() => setShowAdd((s) => !s)}>{showAdd ? 'Cancel' : 'Add volume'}</button>
+          <button className="btn btn--sm" onClick={() => setShowAdd((s) => !s)}>{showAdd ? 'Cancel' : 'Add parts / volumes'}</button>
+          <button className="btn btn--danger btn--sm" onClick={() => setConfirmDelete(true)}>Delete report</button>
         </div>
       </div>
 
@@ -96,6 +125,25 @@ export default function LawReportSeries() {
             </div>
             <div className="form-actions field--full"><button className="btn" type="submit" disabled={busy}>Save volume</button></div>
           </form>
+
+          <h2 className="panel__title mt-3">Add many parts by range</h2>
+          <form className="form-grid" onSubmit={onAddRange}>
+            <div className="field field--full">
+              <label>Available parts</label>
+              <input
+                value={range.parts}
+                onChange={(e) => setRange({ ...range, parts: e.target.value })}
+                placeholder="e.g. 200-500, 502-771, 805"
+              />
+              <span className="field__hint">Each number is added as a held item; tick / untick them below afterwards.</span>
+            </div>
+            <div className="field">
+              <label>Item label</label>
+              <input value={range.prefix} onChange={(e) => setRange({ ...range, prefix: e.target.value })} placeholder="Part" />
+              <span className="field__hint">Labelled e.g. “{range.prefix || 'Part'} 200”.</span>
+            </div>
+            <div className="form-actions field--full"><button className="btn" type="submit" disabled={busy}>Add parts</button></div>
+          </form>
         </div>
       )}
 
@@ -121,6 +169,26 @@ export default function LawReportSeries() {
       </div>
 
       <IndexSearch seriesId={data.id} seriesAbbr={data.abbreviation} />
+
+      {confirmDelete && (
+        <Modal
+          title="Delete this law report?"
+          onClose={() => setConfirmDelete(false)}
+          footer={
+            <div className="form-actions" style={{ marginTop: 0 }}>
+              <button className="btn btn--danger" disabled={busy} onClick={onDelete}>Delete permanently</button>
+              <button className="btn btn--ghost" disabled={busy} onClick={() => setConfirmDelete(false)}>Cancel</button>
+            </div>
+          }
+        >
+          <p><strong>{data.name}</strong> ({data.abbreviation})</p>
+          <p className="text-small">
+            This removes the law report, all {data.volumes.length} of its volumes/parts, its
+            index entries, and its catalogue serial record ({data.serialAccession || '—'}).
+            This cannot be undone.
+          </p>
+        </Modal>
+      )}
     </>
   );
 }

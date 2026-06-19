@@ -2,7 +2,7 @@
 // Matching is relevance-ranked (closest matches first) and supports partial /
 // out-of-order matches. A scope lets the Librarian search all fields, just the
 // title, or just the author.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllCatalogue } from '../lib/catalogue';
 import { authorsToDisplay, norm } from '../lib/format';
@@ -21,6 +21,7 @@ export default function SearchPage() {
   const [status, setStatus] = useState('');
   const [firmOnly, setFirmOnly] = useState(false);
   const [availableOnly, setAvailableOnly] = useState(false);
+  const filterRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -30,6 +31,16 @@ export default function SearchPage() {
         setError(err.message || 'Failed to load catalogue.');
       }
     })();
+  }, []);
+
+  // Close the Filters dropdown when clicking anywhere outside it.
+  useEffect(() => {
+    function onDocClick(e) {
+      const el = filterRef.current;
+      if (el && el.open && !el.contains(e.target)) el.open = false;
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
   const results = useMemo(() => {
@@ -115,7 +126,7 @@ export default function SearchPage() {
           </div>
 
           {/* Extra filters tucked into a dropdown to save space. */}
-          <details className="filter-dropdown">
+          <details className="filter-dropdown" ref={filterRef}>
             <summary className="btn btn--ghost btn--sm">
               Filters{activeFilters ? ` (${activeFilters})` : ''}
             </summary>

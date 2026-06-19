@@ -44,7 +44,8 @@ const GROUPINGS = [
   'Reference Collections',
 ];
 const NON_LOANABLE_STATUSES = ['Reference only', 'Missing', 'Withdrawn'];
-const FIRM_AUTHORED_TITLES = ['Modern Nigerian Law of Contract', 'Through the Cases'];
+// Firm authorship is set explicitly by the Librarian; no titles are auto-tagged.
+const FIRM_AUTHORED_TITLES = [];
 
 // --- Helpers ---------------------------------------------------------------
 const norm = (v) => String(v ?? '').trim().toLowerCase();
@@ -737,6 +738,70 @@ app.patch('/api/law-reports/volumes/:vid', requireAdmin, (req, res) => {
   db.prepare('UPDATE law_report_volumes SET status=? WHERE id=?').run(status, req.params.vid);
   res.json({ id: v.id, status });
 });
+
+// Bulk-add volumes/parts from a range expression, e.g. "200-500, 502-771".
+// Each number becomes one Held volume labelled "<prefix> <n>" (default "Part").
+app.post('/api/law-reports/:id/volumes/bulk', requireAdmin, (req, res) => {
+  const s = db.prepare('SELECT * FROM law_report_series WHERE id=?').get(req.params.id);
+  if (!s) return res.status(404).json({ error: 'Law report series not found.' });
+  const prefix = String(req.body?.prefix || 'Part').trim() || 'Part';
+  const nums = parseRanges(req.body?.ranges);
+  if (nums.length === 0) return res.status(400).json({ error: 'Enter one or more parts, e.g. "200-500, 502-771".' });
+  if (nums.length > 5000) return res.status(400).json({ error: 'That is over 5,000 parts — please narrow the range.' });
+
+  // Skip labels already present so it is safe to re-run.
+  const existing = new Set(
+    db.prepare('SELECT label FROM law_report_volumes WHERE series_id=?').all(s.id).map((r) => r.label)
+  );
+  const baseOrder = db.prepare('SELECT COALESCE(MAX(sort_order),0) m FROM law_report_volumes WHERE series_id=?').get(s.id).m;
+  const ins = db.prepare(
+    "INSERT INTO law_report_volumes (series_id, label, year, volume, status, sort_order) VALUES (?,?,?,?, 'Held', ?)"
+  );
+  let added = 0;
+  db.transaction(() => {
+    nums.forEach((n, i) => {
+      const label = `${prefix} ${n}`;
+      if (existing.has(label)) return;
+      ins.run(s.id, label, '', String(n), baseOrder + i + 1);
+      added += 1;
+    });
+  })();
+  res.json({ added, requested: nums.length });
+});
+
+// Delete a law report series, its volumes, its indexes, and its catalogue
+// serial record. Refused if the serial record has copies out on loan.
+app.delete('/api/law-reports/:id', requireAdmin, (req, res) => {
+  const s = db.prepare('SELECT * FROM law_report_series WHERE id=?').get(req.params.id);
+  if (!s) return res.status(404).json({ error: 'Law report series not found.' });
+  if (s.serial_accession) {
+    const active = db.prepare('SELECT COUNT(*) n FROM loans WHERE accession_number=? AND date_returned IS NULL').get(s.serial_accession).n;
+    if (active > 0) return res.status(400).json({ error: 'This series has copies out on loan; return them first.' });
+  }
+  db.transaction(() => {
+    db.prepare('DELETE FROM law_report_volumes WHERE series_id=?').run(s.id);
+    db.prepare('DELETE FROM law_report_indexes WHERE series_id=?').run(s.id);
+    db.prepare('DELETE FROM law_report_series WHERE id=?').run(s.id);
+    if (s.serial_accession) db.prepare('DELETE FROM catalogue WHERE accession_number=?').run(s.serial_accession);
+  })();
+  res.json({ deleted: true, id: Number(req.params.id) });
+});
+
+// Parse "200-500, 502-771, 805" into a de-duplicated ascending list of numbers.
+function parseRanges(input) {
+  const out = new Set();
+  for (const tok of String(input || '').split(',').map((t) => t.trim()).filter(Boolean)) {
+    const m = tok.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+    if (m) {
+      let a = parseInt(m[1], 10); let b = parseInt(m[2], 10);
+      if (a > b) [a, b] = [b, a];
+      for (let n = a; n <= b; n += 1) out.add(n);
+    } else if (/^\d+$/.test(tok)) {
+      out.add(parseInt(tok, 10));
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
 
 // --- Static serving (production build) -------------------------------------
 const distDir = resolve(__dirname, '..', 'dist');

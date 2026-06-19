@@ -16,10 +16,9 @@ export const GROUPINGS = [
   'Reference Collections',
 ];
 
-// Collections the firm maintains (default new entries to the firm itself).
+// Collections the firm maintains.
 export const COLLECTIONS = [
   'Izy Global Partners LLP',
-  'Alex. A. Izinyon & Co.',
 ];
 export const DEFAULT_COLLECTION = 'Izy Global Partners LLP';
 
@@ -57,11 +56,10 @@ export const ROLES = {
   MEMBER: 'member', // Phase 2 — borrower self-service
 };
 
-// The FC's two authored titles — pre-tagged firmAuthorship on import.
-export const FIRM_AUTHORED_TITLES = [
-  'Modern Nigerian Law of Contract',
-  'Through the Cases',
-];
+// Firm authorship is reserved for works by the firm's founder (Alex Izinyon).
+// No titles are auto-tagged — the Librarian sets this flag explicitly when it
+// applies. (Alex A. Izinyon SAN is not the founder, so his works are not tagged.)
+export const FIRM_AUTHORED_TITLES = [];
 
 // ID formats.
 export const ACCESSION_PREFIX = 'IGP-LIB-';

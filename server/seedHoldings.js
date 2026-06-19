@@ -37,9 +37,9 @@ const GROUPING_MAP = {
   '4. law reports': 'Law Reports',
   '5. reference collections': 'Reference Collections',
 };
-const FIRM_AUTHORED_TITLES = ['Modern Nigerian Law of Contract', 'Through the Cases'];
+// Firm authorship is set explicitly by the Librarian; nothing is auto-tagged.
 const norm = (v) => String(v ?? '').trim().toLowerCase();
-const firmAuthored = (t) => FIRM_AUTHORED_TITLES.some((x) => norm(x) === norm(t));
+const firmAuthored = () => false;
 
 function mapGrouping(raw) {
   const key = norm(raw);

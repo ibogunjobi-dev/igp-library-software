@@ -37,3 +37,12 @@ export async function addSeriesVolume(id, data) {
 export async function setVolumeStatus(volumeId, status) {
   return api.patch(`/law-reports/volumes/${volumeId}`, { status });
 }
+
+// Bulk-add volumes/parts from a range expression, e.g. "200-500, 502-771".
+export async function bulkAddVolumes(id, ranges, prefix = 'Part') {
+  return api.post(`/law-reports/${id}/volumes/bulk`, { ranges, prefix });
+}
+
+export async function deleteLawReportSeries(id) {
+  return api.delete(`/law-reports/${id}`);
+}

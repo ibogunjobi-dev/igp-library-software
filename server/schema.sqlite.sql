@@ -54,9 +54,7 @@ CREATE TABLE IF NOT EXISTS catalogue (
                        'Law Reports',
                        'Reference Collections')),
   collection       TEXT NOT NULL DEFAULT 'Izy Global Partners LLP'
-                     CHECK (collection IN (
-                       'Izy Global Partners LLP',
-                       'Alex. A. Izinyon & Co.')),
+                     CHECK (collection IN ('Izy Global Partners LLP')),
   copies_total     INTEGER NOT NULL DEFAULT 1 CHECK (copies_total >= 1),
   copies_available INTEGER NOT NULL DEFAULT 1 CHECK (copies_available >= 0),
   status           TEXT NOT NULL DEFAULT 'Available'

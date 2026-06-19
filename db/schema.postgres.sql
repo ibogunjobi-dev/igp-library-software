@@ -27,8 +27,7 @@ CREATE TYPE catalogue_grouping AS ENUM (
   'Reference Collections'
 );
 CREATE TYPE catalogue_collection AS ENUM (
-  'Izy Global Partners LLP',
-  'Alex. A. Izinyon & Co.'
+  'Izy Global Partners LLP'
 );
 CREATE TYPE catalogue_status AS ENUM (
   'Available', 'On loan', 'Reference only', 'Missing', 'Withdrawn'

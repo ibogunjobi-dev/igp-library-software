@@ -158,9 +158,9 @@ for (const t of TEXTBOOKS) {
   db.prepare(
     `INSERT INTO catalogue (accession_number, title, authors, publisher, grouping, collection,
         copies_total, copies_available, status, firm_authorship)
-     VALUES (?, ?, ?, ?, 'Textbooks', 'Izy Global Partners LLP', ?, ?, 'Available', 1)`
+     VALUES (?, ?, ?, ?, 'Textbooks', 'Izy Global Partners LLP', ?, ?, 'Available', 0)`
   ).run(accession, t.title, t.authors, t.publisher, t.copies, t.copies);
-  console.log(`Textbook added: ${accession} — ${t.title} (${t.copies} copies, firm-authored).`);
+  console.log(`Textbook added: ${accession} — ${t.title} (${t.copies} copies).`);
   added += 1;
 }
 
