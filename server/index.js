@@ -273,6 +273,92 @@ app.patch('/api/catalogue/:id/status', requireAdmin, (req, res) => {
   res.json(catalogueToApi(db.prepare('SELECT * FROM catalogue WHERE id = ?').get(req.params.id)));
 });
 
+// Permanently delete a record. Refused while any copy is out on loan (the
+// Librarian is offered "Withdraw" instead in the UI, which retains the record).
+app.delete('/api/catalogue/:id', requireAdmin, (req, res) => {
+  const row = db.prepare('SELECT * FROM catalogue WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Catalogue record not found.' });
+  const active = db.prepare(
+    'SELECT COUNT(*) n FROM loans WHERE accession_number = ? AND date_returned IS NULL'
+  ).get(row.accession_number).n;
+  if (active > 0) {
+    return res.status(400).json({ error: `Cannot delete: ${active} active loan(s) reference this item. Return them first, or withdraw the record instead.` });
+  }
+  db.prepare('DELETE FROM catalogue WHERE id = ?').run(req.params.id);
+  res.json({ deleted: true, id: Number(req.params.id) });
+});
+
+// Merge duplicate records into one: copy counts are summed onto `keepId` and the
+// other records are deleted. Loan history keeps its denormalised title/accession.
+app.post('/api/catalogue/merge', requireAdmin, (req, res) => {
+  const keepId = req.body?.keepId;
+  const mergeIds = (req.body?.mergeIds || []).filter((x) => String(x) !== String(keepId));
+  const keep = db.prepare('SELECT * FROM catalogue WHERE id = ?').get(keepId);
+  if (!keep) return res.status(404).json({ error: 'The record to keep was not found.' });
+  if (mergeIds.length === 0) return res.status(400).json({ error: 'Select at least one other record to merge in.' });
+  try {
+    const merged = db.transaction(() => {
+      let addTotal = 0, addAvail = 0;
+      for (const mid of mergeIds) {
+        const m = db.prepare('SELECT * FROM catalogue WHERE id = ?').get(mid);
+        if (!m) continue;
+        const active = db.prepare('SELECT COUNT(*) n FROM loans WHERE accession_number = ? AND date_returned IS NULL').get(m.accession_number).n;
+        if (active > 0) throw new Error(`Record ${m.accession_number} has active loans; return them before merging.`);
+        addTotal += m.copies_total;
+        addAvail += m.copies_available;
+        db.prepare('DELETE FROM catalogue WHERE id = ?').run(mid);
+      }
+      db.prepare("UPDATE catalogue SET copies_total = copies_total + ?, copies_available = copies_available + ?, updated_at = datetime('now') WHERE id = ?")
+        .run(addTotal, addAvail, keepId);
+      return db.prepare('SELECT * FROM catalogue WHERE id = ?').get(keepId);
+    })();
+    res.json(catalogueToApi(merged));
+  } catch (err) {
+    res.status(400).json({ error: err.message || friendlySqlite(err) });
+  }
+});
+
+// --- Authors (derived from catalogue author strings) -----------------------
+// Distinct author names with a count of records, for the add-book picker and
+// the author-merge tool.
+app.get('/api/authors', requireAdmin, (_req, res) => {
+  const rows = db.prepare('SELECT authors FROM catalogue').all();
+  const counts = new Map();
+  for (const r of rows) {
+    if (!r.authors) continue;
+    for (const a of String(r.authors).split(';').map((s) => s.trim()).filter(Boolean)) {
+      counts.set(a, (counts.get(a) || 0) + 1);
+    }
+  }
+  res.json([...counts.entries()].map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name)));
+});
+
+// Merge author names: every `from` name is replaced by `to` across the catalogue.
+app.post('/api/authors/merge', requireAdmin, (req, res) => {
+  const from = (req.body?.from || []).map((s) => String(s).trim()).filter(Boolean);
+  const to = String(req.body?.to || '').trim();
+  if (!to || from.length === 0) return res.status(400).json({ error: 'Choose names to merge and a target name.' });
+  const fromSet = new Set(from.map((s) => s.toLowerCase()));
+  const rows = db.prepare('SELECT id, authors FROM catalogue').all();
+  const upd = db.prepare("UPDATE catalogue SET authors = ?, updated_at = datetime('now') WHERE id = ?");
+  let changed = 0;
+  db.transaction(() => {
+    for (const r of rows) {
+      if (!r.authors) continue;
+      const tokens = String(r.authors).split(';').map((s) => s.trim()).filter(Boolean);
+      let touched = false;
+      const mapped = tokens.map((t) => { if (fromSet.has(t.toLowerCase())) { touched = true; return to; } return t; });
+      if (!touched) continue;
+      const seen = new Set(); const dedup = [];
+      for (const t of mapped) { const k = t.toLowerCase(); if (!seen.has(k)) { seen.add(k); dedup.push(t); } }
+      upd.run(dedup.join('; '), r.id);
+      changed += 1;
+    }
+  })();
+  res.json({ merged: true, to, changed });
+});
+
 // --- Members ---------------------------------------------------------------
 app.get('/api/members', requireAdmin, (_req, res) => {
   const rows = db.prepare('SELECT * FROM members ORDER BY member_id').all();

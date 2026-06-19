@@ -3,9 +3,9 @@
 # Izy Global Partners LLP — Library
 # Double-click this file to start the Library and open it in your browser.
 #
-# It runs one local server that serves both the application and its data on
-# http://localhost:4000. Keep the Terminal window that opens — closing it
-# stops the Library. To stop, close that window or press Ctrl-C in it.
+# This runs exactly the same as "npm run dev": the API server plus the Vite
+# dev server, with the app served on http://localhost:5173. Keep the Terminal
+# window that opens — closing it stops the Library (or press Ctrl-C in it).
 # ============================================================================
 
 cd "$(dirname "$0")" || exit 1
@@ -29,29 +29,10 @@ if [ ! -d node_modules ]; then
   npm install || { echo "Setup failed."; read -r -p "Press Return to close." _; exit 1; }
 fi
 
-# 3. Build the application if it has not been built yet.
-if [ ! -d dist ]; then
-  echo "Preparing the application…"
-  npm run build || { echo "Build failed."; read -r -p "Press Return to close." _; exit 1; }
-fi
-
-# 4. Start the server (serves the app + data on port 4000).
-export IGP_API_PORT=4000
-node server/index.js &
-SERVER_PID=$!
-
-# 5. Wait until it is ready, then open the browser.
-echo "Waiting for the Library to be ready…"
-for _ in $(seq 1 60); do
-  if curl -s "http://localhost:4000/" >/dev/null 2>&1; then break; fi
-  sleep 0.5
-done
-open "http://localhost:4000"
-
-echo
-echo "The Library is running at http://localhost:4000"
+echo "The Library will open automatically at http://localhost:5173"
 echo "Leave this window open while you use it. Close it to stop the Library."
 echo
 
-# Keep the server in the foreground so the window stays open.
-wait "$SERVER_PID"
+# 3. Run exactly the same processes as "npm run dev" (API + Vite). Vite opens
+#    the browser at http://localhost:5173 itself (server.open is enabled).
+npm run dev

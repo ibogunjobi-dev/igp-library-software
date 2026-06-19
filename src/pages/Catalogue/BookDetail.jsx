@@ -1,10 +1,11 @@
 // View an individual catalogue record, with status actions and a loan link.
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { getCatalogueItem, setCatalogueStatus } from '../../lib/catalogue';
-import { authorsToDisplay, formatDate, docRef } from '../../lib/format';
+import { getCatalogueItem, setCatalogueStatus, deleteCatalogueItem, getAllCatalogue, mergeCatalogue } from '../../lib/catalogue';
+import { authorsToDisplay, formatDate, docRef, norm } from '../../lib/format';
 import { NON_LOANABLE_STATUSES } from '../../lib/constants';
 import Spinner from '../../components/Spinner';
+import Modal from '../../components/Modal';
 import StatusBadge, { FirmAuthorshipBadge } from '../../components/StatusBadge';
 
 export default function BookDetail() {
@@ -13,6 +14,10 @@ export default function BookDetail() {
   const [item, setItem] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [candidates, setCandidates] = useState([]);
+  const [selected, setSelected] = useState({});
 
   async function load() {
     try {
@@ -30,6 +35,61 @@ export default function BookDetail() {
     try {
       await setCatalogueStatus(id, status);
       await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function withdrawFromModal() {
+    setConfirmDelete(false);
+    await changeStatus('Withdrawn');
+  }
+
+  async function deletePermanently() {
+    setBusy(true);
+    try {
+      await deleteCatalogueItem(id);
+      navigate('/catalogue');
+    } catch (err) {
+      setError(err.message || 'Failed to delete record.');
+      setBusy(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  // Open the merge picker: candidates share this record's title and have a
+  // compatible edition and year (matching, or unspecified on either side).
+  async function openMerge() {
+    setBusy(true);
+    try {
+      const all = await getAllCatalogue();
+      const compat = (a, b) => !a || !b || norm(a) === norm(b);
+      const found = all.filter(
+        (r) => r.id !== item.id &&
+          norm(r.title) === norm(item.title) &&
+          compat(r.edition, item.edition) &&
+          compat(String(r.year), String(item.year))
+      );
+      setCandidates(found);
+      setSelected({});
+      setMergeOpen(true);
+    } catch (err) {
+      setError(err.message || 'Failed to find duplicates.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doMerge() {
+    const ids = Object.keys(selected).filter((k) => selected[k]).map(Number);
+    if (ids.length === 0) return;
+    setBusy(true);
+    try {
+      await mergeCatalogue(item.id, ids);
+      setMergeOpen(false);
+      await load();
+    } catch (err) {
+      setError(err.message || 'Merge failed.');
     } finally {
       setBusy(false);
     }
@@ -112,8 +172,88 @@ export default function BookDetail() {
               Set reference only
             </button>
           )}
+          <button className="btn btn--ghost" disabled={busy} onClick={openMerge}>
+            Merge duplicates
+          </button>
+          <button className="btn btn--danger" disabled={busy} onClick={() => setConfirmDelete(true)}>
+            Delete record
+          </button>
         </div>
       </div>
+
+      {mergeOpen && (
+        <Modal
+          title="Merge duplicate records"
+          onClose={() => setMergeOpen(false)}
+          footer={
+            <div className="form-actions" style={{ marginTop: 0 }}>
+              <button className="btn" disabled={busy || !Object.values(selected).some(Boolean)} onClick={doMerge}>
+                Merge selected into this record
+              </button>
+              <button className="btn btn--ghost" disabled={busy} onClick={() => setMergeOpen(false)}>Cancel</button>
+            </div>
+          }
+        >
+          <p className="text-small">
+            Keeping <strong>{item.accessionNumber}</strong> — {item.title}. Selected records'
+            copy counts are added here and those records are removed. Loan history is preserved.
+          </p>
+          {candidates.length === 0 ? (
+            <p className="muted">No other records share this title with a compatible edition/year.</p>
+          ) : (
+            <div className="tag-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
+              {candidates.map((c) => (
+                <label key={c.id} className="filter-dropdown__item" style={{ border: '1px solid var(--igp-line)', padding: '0.5rem 0.6rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!selected[c.id]}
+                    onChange={(e) => setSelected((s) => ({ ...s, [c.id]: e.target.checked }))}
+                  />
+                  <span>
+                    <strong>{c.accessionNumber}</strong> — {c.title}
+                    <span className="text-small muted">
+                      {' '}· {c.edition || 'no edition'} · {c.year || 'no year'} · {c.copiesAvailable}/{c.copiesTotal} copies
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {confirmDelete && (
+        <Modal
+          title="Delete this record?"
+          onClose={() => setConfirmDelete(false)}
+          footer={
+            <div className="form-actions" style={{ marginTop: 0 }}>
+              <button className="btn btn--danger" disabled={busy} onClick={deletePermanently}>
+                Delete permanently
+              </button>
+              <button className="btn" disabled={busy} onClick={withdrawFromModal}>
+                Withdraw instead (keep record)
+              </button>
+              <button className="btn btn--ghost" disabled={busy} onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </button>
+            </div>
+          }
+        >
+          <p>
+            <strong>{item.title}</strong> ({item.accessionNumber})
+          </p>
+          <p className="text-small">
+            <strong>Delete permanently</strong> removes the record from the catalogue
+            entirely and cannot be undone. <strong>Withdraw</strong> keeps the record
+            for the archive but marks it as no longer in circulation.
+          </p>
+          <p className="text-small muted">
+            Records with copies currently out on loan cannot be deleted — return the
+            loans first, or withdraw instead.
+          </p>
+        </Modal>
+      )}
     </>
   );
 }

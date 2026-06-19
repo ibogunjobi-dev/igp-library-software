@@ -1,4 +1,7 @@
 // Free-text search and faceted filtering across the catalogue.
+// Matching is relevance-ranked (closest matches first) and supports partial /
+// out-of-order matches. A scope lets the Librarian search all fields, just the
+// title, or just the author.
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllCatalogue } from '../lib/catalogue';
@@ -12,6 +15,7 @@ export default function SearchPage() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
+  const [scope, setScope] = useState('all'); // all | title | author
   const [grouping, setGrouping] = useState('');
   const [collection, setCollection] = useState('');
   const [status, setStatus] = useState('');
@@ -31,47 +35,62 @@ export default function SearchPage() {
   const results = useMemo(() => {
     if (!items) return [];
     const term = norm(q);
-    return items.filter((r) => {
+    // Apply facet filters first.
+    const faceted = items.filter((r) => {
       if (grouping && r.grouping !== grouping) return false;
       if (collection && r.collection !== collection) return false;
       if (status && r.status !== status) return false;
       if (firmOnly && !r.firmAuthorship) return false;
       if (availableOnly && (r.copiesAvailable || 0) <= 0) return false;
-      if (!term) return true;
-      const haystack = [
-        r.title,
-        authorsToDisplay(r.authors),
-        r.publisher,
-        r.accessionNumber,
-        Array.isArray(r.keywords) ? r.keywords.join(' ') : r.keywords,
-      ].map(norm).join(' ');
-      return haystack.includes(term);
+      return true;
     });
-  }, [items, q, grouping, collection, status, firmOnly, availableOnly]);
+    if (!term) {
+      return [...faceted].sort((a, b) => String(a.accessionNumber).localeCompare(String(b.accessionNumber)));
+    }
+    // Score, keep matches, rank most-similar first.
+    return faceted
+      .map((r) => ({ r, score: relevance(r, term, scope) }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score || String(a.r.title).localeCompare(String(b.r.title)))
+      .map((x) => x.r);
+  }, [items, q, scope, grouping, collection, status, firmOnly, availableOnly]);
 
   function reset() {
-    setQ(''); setGrouping(''); setCollection(''); setStatus('');
+    setQ(''); setScope('all'); setGrouping(''); setCollection(''); setStatus('');
     setFirmOnly(false); setAvailableOnly(false);
   }
 
   if (error) return <div className="alert alert--error">{error}</div>;
   if (!items) return <Spinner center />;
 
+  const activeFilters = (firmOnly ? 1 : 0) + (availableOnly ? 1 : 0);
+
   return (
     <>
       <div className="page-head">
-        <h1>Search &amp; filter</h1>
+        <div>
+          <span className="page-head__sub">Legal &amp; Knowledge Resources Centre</span>
+          <h1>Search &amp; filter</h1>
+        </div>
       </div>
 
       <div className="panel">
         <div className="toolbar">
           <div className="field toolbar__search">
-            <label>Free-text search</label>
+            <label>Search</label>
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Title, author, publisher, keyword, accession…"
             />
+          </div>
+          <div className="field">
+            <label>Look in</label>
+            <select value={scope} onChange={(e) => setScope(e.target.value)}>
+              <option value="all">All fields</option>
+              <option value="title">Book title</option>
+              <option value="author">Author</option>
+            </select>
           </div>
           <div className="field">
             <label>Grouping</label>
@@ -94,30 +113,36 @@ export default function SearchPage() {
               {CATALOGUE_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <div className="field">
-            <label>&nbsp;</label>
-            <label className="row text-small" style={{ cursor: 'pointer' }}>
-              <input type="checkbox" style={{ width: 'auto' }} checked={firmOnly} onChange={(e) => setFirmOnly(e.target.checked)} />
-              Firm authorship
-            </label>
-          </div>
-          <div className="field">
-            <label>&nbsp;</label>
-            <label className="row text-small" style={{ cursor: 'pointer' }}>
-              <input type="checkbox" style={{ width: 'auto' }} checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} />
-              Available only
-            </label>
-          </div>
-          <button className="btn btn--ghost" onClick={reset}>Reset</button>
+
+          {/* Extra filters tucked into a dropdown to save space. */}
+          <details className="filter-dropdown">
+            <summary className="btn btn--ghost btn--sm">
+              Filters{activeFilters ? ` (${activeFilters})` : ''}
+            </summary>
+            <div className="filter-dropdown__menu">
+              <label className="filter-dropdown__item">
+                <input type="checkbox" checked={firmOnly} onChange={(e) => setFirmOnly(e.target.checked)} />
+                Firm authorship
+              </label>
+              <label className="filter-dropdown__item">
+                <input type="checkbox" checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} />
+                Available only
+              </label>
+            </div>
+          </details>
+
+          <button className="btn btn--ghost btn--sm" onClick={reset}>Reset</button>
         </div>
 
-        <p className="text-small muted">{results.length} matching record{results.length === 1 ? '' : 's'}.</p>
+        <p className="text-small muted">
+          {results.length} matching record{results.length === 1 ? '' : 's'}
+          {q ? ' — most relevant first' : ''}.
+        </p>
 
         <DataTable
           rows={results}
           pageSize={10}
-          initialSort={{ key: 'accessionNumber', dir: 'asc' }}
-          emptyMessage="No records match the current filters."
+          emptyMessage="No records match the current search."
           columns={[
             { key: 'accessionNumber', label: 'Accession', sortable: true,
               render: (r) => <Link to={`/catalogue/${r.id}`}>{r.accessionNumber}</Link> },
@@ -141,4 +166,51 @@ export default function SearchPage() {
       </div>
     </>
   );
+}
+
+// --- Relevance scoring ------------------------------------------------------
+// Higher = more similar. 0 = no match (excluded). Considers exact match,
+// prefix, word-prefix, substring (earlier = better), and subsequence (the
+// query letters appearing in order), plus a token-overlap bonus.
+function relevance(record, term, scope) {
+  const title = norm(record.title);
+  const author = norm(authorsToDisplay(record.authors));
+  const fields =
+    scope === 'title' ? [{ t: title, w: 1 }]
+      : scope === 'author' ? [{ t: author, w: 1 }]
+        : [
+            { t: title, w: 1 },
+            { t: author, w: 0.95 },
+            { t: norm(record.publisher), w: 0.7 },
+            { t: norm(Array.isArray(record.keywords) ? record.keywords.join(' ') : record.keywords), w: 0.7 },
+            { t: norm(record.accessionNumber), w: 0.8 },
+          ];
+  let best = 0;
+  for (const f of fields) best = Math.max(best, scoreText(f.t, term) * f.w);
+  return best;
+}
+
+function scoreText(hay, q) {
+  if (!hay) return 0;
+  if (hay === q) return 100;
+  if (hay.startsWith(q)) return 85;
+  const idx = hay.indexOf(q);
+  if (idx >= 0) return 70 - Math.min(idx, 40) * 0.5; // earlier substring ranks higher
+  const tokens = hay.split(/[^a-z0-9]+/).filter(Boolean);
+  if (tokens.some((t) => t.startsWith(q))) return 55;
+  // All query words present somewhere (order-independent).
+  const qWords = q.split(/\s+/).filter(Boolean);
+  if (qWords.length > 1 && qWords.every((w) => hay.includes(w))) return 45;
+  if (isSubsequence(q.replace(/\s+/g, ''), hay)) return 18;
+  return 0;
+}
+
+// True if all characters of q appear in hay in order (loose fuzzy match).
+function isSubsequence(q, hay) {
+  if (!q) return false;
+  let i = 0;
+  for (let j = 0; j < hay.length && i < q.length; j += 1) {
+    if (hay[j] === q[i]) i += 1;
+  }
+  return i === q.length;
 }

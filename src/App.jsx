@@ -29,6 +29,7 @@ import SettingsPage from './pages/Settings/SettingsPage';
 import NwlrPage from './pages/Nwlr/NwlrPage';
 import LawReportsList from './pages/LawReports/LawReportsList';
 import LawReportSeries from './pages/LawReports/LawReportSeries';
+import AuthorsPage from './pages/Authors/AuthorsPage';
 
 // Phase 2 stubs (architected, not built).
 import MemberPortalStub from './pages/phase2/MemberPortalStub';
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="catalogue/:id" element={<BookDetail />} />
         <Route path="catalogue/:id/edit" element={<BookForm />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="authors" element={<AuthorsPage />} />
         <Route path="members" element={<MemberList />} />
         <Route path="members/new" element={<MemberForm />} />
         <Route path="members/:id" element={<MemberDetail />} />

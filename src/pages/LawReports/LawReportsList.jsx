@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getLawReportSeriesList, createLawReportSeries } from '../../lib/lawreports';
 import Spinner from '../../components/Spinner';
+import Modal from '../../components/Modal';
 
 export default function LawReportsList() {
   const [series, setSeries] = useState(null);
@@ -48,16 +49,24 @@ export default function LawReportsList() {
           <h1>Law reports</h1>
         </div>
         <div className="page-head__actions">
-          <button className="btn" onClick={() => setShowAdd((s) => !s)}>{showAdd ? 'Cancel' : 'Add law report'}</button>
+          <button className="btn" onClick={() => setShowAdd(true)}>Add law report</button>
         </div>
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
 
       {showAdd && (
-        <div className="panel">
-          <h2 className="panel__title">Add a law report series</h2>
-          <form className="form-grid" onSubmit={onAdd}>
+        <Modal
+          title="Add a law report series"
+          onClose={() => setShowAdd(false)}
+          footer={
+            <div className="form-actions" style={{ marginTop: 0 }}>
+              <button className="btn" type="submit" form="add-series-form" disabled={busy}>Create law report</button>
+              <button className="btn btn--ghost" onClick={() => setShowAdd(false)} disabled={busy}>Cancel</button>
+            </div>
+          }
+        >
+          <form id="add-series-form" className="form-grid form-grid--single" onSubmit={onAdd}>
             <div className="field">
               <label>Abbreviation<span className="req">*</span></label>
               <input value={form.abbreviation} onChange={(e) => setForm({ ...form, abbreviation: e.target.value })} placeholder="e.g. FWLR" required />
@@ -74,11 +83,8 @@ export default function LawReportsList() {
               </select>
               <span className="field__hint">A catalogue serial record is created automatically.</span>
             </div>
-            <div className="form-actions field--full">
-              <button className="btn" type="submit" disabled={busy}>Create law report</button>
-            </div>
           </form>
-        </div>
+        </Modal>
       )}
 
       <div className="card-grid">

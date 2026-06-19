@@ -46,6 +46,26 @@ export async function setCatalogueStatus(id, status) {
   return api.patch(`/catalogue/${id}/status`, { status });
 }
 
+// Permanently delete a record (server refuses if copies are out on loan).
+export async function deleteCatalogueItem(id) {
+  return api.delete(`/catalogue/${id}`);
+}
+
+// Merge duplicate records: sum copies into keepId, delete the others.
+export async function mergeCatalogue(keepId, mergeIds) {
+  return api.post('/catalogue/merge', { keepId, mergeIds });
+}
+
+// Distinct author names (with record counts) for pickers and merging.
+export async function getAuthors() {
+  return api.get('/authors');
+}
+
+// Merge author names: replace every `from` name with `to` across the catalogue.
+export async function mergeAuthors(from, to) {
+  return api.post('/authors/merge', { from, to });
+}
+
 // --- Duplicate detection (pure) --------------------------------------------
 // A "same edition" duplicate matches on title + author + edition + publisher
 // (case-insensitive). Returns the matching record, or null.

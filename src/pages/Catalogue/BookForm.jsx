@@ -8,6 +8,7 @@ import {
   updateCatalogueItem,
   incrementCopies,
   findDuplicate,
+  getAuthors,
 } from '../../lib/catalogue';
 import {
   GROUPINGS,
@@ -37,6 +38,12 @@ export default function BookForm() {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [duplicate, setDuplicate] = useState(null);
+  const [authorOptions, setAuthorOptions] = useState([]);
+
+  // Load existing author names for the picker (select existing or type a new one).
+  useEffect(() => {
+    getAuthors().then((list) => setAuthorOptions(list.map((a) => a.name))).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -169,8 +176,16 @@ export default function BookForm() {
             <input value={form.title} onChange={(e) => set('title', e.target.value)} />
           </Field>
 
-          <Field label="Author(s)" hint="Separate multiple authors with a semicolon. May be empty for serials.">
-            <input value={form.authors} onChange={(e) => set('authors', e.target.value)} />
+          <Field label="Author(s)" hint="Pick an existing author or type a new one. Separate multiple authors with a semicolon.">
+            <input
+              value={form.authors}
+              onChange={(e) => set('authors', e.target.value)}
+              list="author-options"
+              autoComplete="off"
+            />
+            <datalist id="author-options">
+              {authorOptions.map((a) => <option key={a} value={a} />)}
+            </datalist>
           </Field>
           <Field label="Publisher">
             <input value={form.publisher} onChange={(e) => set('publisher', e.target.value)} />
