@@ -38,10 +38,11 @@ export default function IssueLoan() {
         // Pre-select from query params (links from book / member detail).
         const preBook = params.get('book');
         const preMember = params.get('member');
-        if (preBook) setBookId(preBook);
+        // IDs from the API are numbers; the form holds them as strings.
+        if (preBook) setBookId(String(preBook));
         if (preMember) {
-          const mm = m.find((x) => x.id === preMember);
-          if (mm) setMemberId(mm.id);
+          const mm = m.find((x) => String(x.id) === String(preMember));
+          if (mm) setMemberId(String(mm.id));
         }
       } catch (err) {
         setError(err.message || 'Failed to load data.');
@@ -70,11 +71,16 @@ export default function IssueLoan() {
     [members]
   );
 
+  const selectedBook = useMemo(
+    () => (catalogue || []).find((b) => String(b.id) === String(bookId)) || null,
+    [catalogue, bookId]
+  );
+
   async function onSubmit(e) {
     e.preventDefault();
     setError('');
-    const book = catalogue.find((b) => b.id === bookId);
-    const member = members.find((m) => m.id === memberId);
+    const book = catalogue.find((b) => String(b.id) === String(bookId));
+    const member = members.find((m) => String(m.id) === String(memberId));
     if (!book) { setError('Select a book to loan.'); return; }
     if (!member) { setError('Select a member.'); return; }
 
@@ -133,21 +139,40 @@ export default function IssueLoan() {
           </div>
 
           <div className="field field--full">
-            <label>Find a book</label>
-            <input value={bookSearch} onChange={(e) => setBookSearch(e.target.value)}
-              placeholder="Filter the loanable list by title, author or accession…" />
-          </div>
-
-          <div className="field field--full">
             <label>Book<span className="req">*</span></label>
-            <select value={bookId} onChange={(e) => setBookId(e.target.value)} size={8} style={{ height: 'auto' }}>
-              {filteredBooks.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.accessionNumber} — {b.title}
-                  {b.edition ? ` (${b.edition})` : ''} · {b.copiesAvailable} available
-                </option>
-              ))}
-            </select>
+            <input value={bookSearch} onChange={(e) => setBookSearch(e.target.value)}
+              placeholder="Search by title, author or accession number…" />
+            <div className="pick-list" role="listbox" aria-label="Available books">
+              {filteredBooks.length === 0 ? (
+                <div className="pick-empty muted">
+                  {loanable.length === 0 ? 'No items are available to loan.' : 'No available books match your search.'}
+                </div>
+              ) : (
+                filteredBooks.map((b) => {
+                  const isSel = String(b.id) === String(bookId);
+                  return (
+                    <button
+                      type="button"
+                      key={b.id}
+                      role="option"
+                      aria-selected={isSel}
+                      className={`pick-item${isSel ? ' pick-item--selected' : ''}`}
+                      onClick={() => setBookId(String(b.id))}
+                    >
+                      <span className="pick-item__title">
+                        {b.title}{b.edition ? ` (${b.edition})` : ''}
+                      </span>
+                      <span className="pick-item__meta">
+                        {b.accessionNumber} · {authorsToDisplay(b.authors) || '—'} · {b.copiesAvailable} available
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            {selectedBook && (
+              <span className="field__hint">Selected: <strong>{selectedBook.title}</strong> ({selectedBook.accessionNumber})</span>
+            )}
           </div>
 
           <div className="field field--full">
