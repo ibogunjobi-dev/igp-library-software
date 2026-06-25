@@ -4,11 +4,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getLawReportSeriesList, createLawReportSeries, bulkAddVolumes } from '../../lib/lawreports';
+import { getAllCatalogue } from '../../lib/catalogue';
+import { authorsToDisplay } from '../../lib/format';
 import Spinner from '../../components/Spinner';
 import Modal from '../../components/Modal';
+import DataTable from '../../components/DataTable';
+import StatusBadge from '../../components/StatusBadge';
 
 export default function LawReportsList() {
   const [series, setSeries] = useState(null);
+  const [books, setBooks] = useState([]); // standalone law-report titles (not serial sets)
   const [error, setError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ abbreviation: '', name: '', kind: 'volumes', prefix: 'Part', parts: '' });
@@ -16,8 +21,18 @@ export default function LawReportsList() {
   const navigate = useNavigate();
 
   async function load() {
-    try { setSeries(await getLawReportSeriesList()); }
-    catch (err) { setError(err.message || 'Failed to load law reports.'); }
+    try {
+      const [s, catalogue] = await Promise.all([getLawReportSeriesList(), getAllCatalogue()]);
+      setSeries(s);
+      // Catalogue records in the Law Reports grouping that are NOT a series'
+      // serial record — i.e. the standalone law-report titles.
+      const serialAccessions = new Set(s.map((x) => x.serialAccession).filter(Boolean));
+      setBooks(
+        catalogue.filter((r) => r.grouping === 'Law Reports' && !serialAccessions.has(r.accessionNumber))
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to load law reports.');
+    }
   }
   useEffect(() => { load(); }, []);
 
@@ -113,6 +128,7 @@ export default function LawReportsList() {
         </Modal>
       )}
 
+      <h2 className="panel__title" style={{ borderBottom: 'none', marginBottom: '0.6rem' }}>Report series</h2>
       <div className="card-grid">
         {series.map((s) => (
           <Link key={s.id} to={linkFor(s)} className="report-card">
@@ -125,6 +141,30 @@ export default function LawReportsList() {
             {s.serialAccession && <div className="report-card__acc">{s.serialAccession}</div>}
           </Link>
         ))}
+      </div>
+
+      <div className="panel mt-3">
+        <h2 className="panel__title">Individual law reports</h2>
+        {books.length === 0 ? (
+          <p className="muted">No standalone law-report titles. Add one from the Catalogue under the “Law Reports” grouping.</p>
+        ) : (
+          <DataTable
+            rows={books}
+            pageSize={10}
+            initialSort={{ key: 'title', dir: 'asc' }}
+            columns={[
+              { key: 'accessionNumber', label: 'Accession', sortable: true,
+                render: (r) => <Link to={`/catalogue/${r.id}`}>{r.accessionNumber}</Link> },
+              { key: 'title', label: 'Title', sortable: true,
+                render: (r) => <Link to={`/catalogue/${r.id}`}>{r.title}</Link> },
+              { key: 'author', label: 'Author', sortValue: (r) => authorsToDisplay(r.authors),
+                render: (r) => authorsToDisplay(r.authors) || <span className="muted">—</span> },
+              { key: 'copies', label: 'Copies', align: 'right',
+                render: (r) => `${r.copiesAvailable ?? 0} / ${r.copiesTotal ?? 0}` },
+              { key: 'status', label: 'Status', sortable: true, render: (r) => <StatusBadge status={r.status} /> },
+            ]}
+          />
+        )}
       </div>
     </>
   );
